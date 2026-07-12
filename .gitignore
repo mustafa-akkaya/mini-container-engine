@@ -1,0 +1,12 @@
+ # Derlenmis dosyalar
+    container
+    *.o
+
+    # Alpine rootfs (buyuk, herkes kendi indirir)
+    rootfs/
+    *.tar.gz
+
+    # Editor dosyalari
+    *.swp
+    *~
+    .vscode/
