@@ -16,8 +16,8 @@ Bu proje, Docker ve benzeri container teknolojilerinin arka planda işletim sist
 graph TD
     A[Kullanıcı Girdisi] --> B(Mini Engine)
     B --> C{İzolasyon Kurulumu}
-    C -->|clone()| D[Namespace İzolasyonu]
-    C -->|cgroups| E[Kaynak Kısıtlaması]
+    C -- "clone()" --> D[Namespace İzolasyonu]
+    C -- "cgroups" --> E[Kaynak Kısıtlaması]
     D --> F[chroot ile Kök Dizin]
     E --> F
     F --> G[İzole Edilmiş Process /bin/sh]
