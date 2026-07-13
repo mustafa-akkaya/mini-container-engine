@@ -1,84 +1,107 @@
-# Mini Container Engine
+    # Mini Container Engine
 
-    A minimal Linux container runtime written in C from scratch. This project demonstrates how modern container
-  engines (like Docker) work under the hood using native Linux kernel features.
+A minimal container runtime built from scratch in C, implementing core Linux containerization primitives. This
+project demonstrates how Docker-like containers work under the hood using Linux kernel features.
 
-    ## Core Features
+    ## Architecture
 
-    - **Process Isolation (PID Namespace):** Container runs in an isolated process tree where it sees itself as PID 1
-  using `clone(CLONE_NEWPID)`.
-    - **Hostname Isolation (UTS Namespace):** Containers can have their own independent hostname using
-  `clone(CLONE_NEWUTS)` and `sethostname()`.
-    - **Filesystem Isolation (Mount Namespace):** Uses `pivot_root()` and private bind mounts to safely isolate the
-  root filesystem without relying on `chroot()`.
-    - **Network Isolation (Network Namespace):** Creates an isolated virtual network interface (`veth`) connected to
-  a host Linux bridge (`br-container`) with NAT internet access via `iptables`.
-    - **Resource Limiting (cgroups v2):** Enforces strict memory (`memory.max`), CPU (`cpu.max`), and process count
-  (`pids.max`) limits.
-    - **CLI & Container Management:** Supports listing active containers (`ps`), stopping containers (`stop`), and
-  image management (`images`, `create-image`).
+    ```mermaid
+    graph TD
+        subgraph Host["HOST SYSTEM"]
+            CLI["./container CLI<br>run | ps | stop | images"]
+            Kernel["Linux Kernel<br>clone() syscall"]
+            CG["cgroups v2<br>memory.max | cpu.max | pids.max"]
+            Bridge["br-container<br>10.0.0.1/24"]
+            Veth0["veth0"]
+        end
 
-    ## Requirements
+        subgraph Container["ISOLATED CONTAINER (PID 1)"]
+            Veth1["veth1<br>10.0.0.2/24"]
+            FS["Alpine Linux Rootfs<br>pivot_root()"]
+            Proc["/proc & /sys<br>private mounts"]
+        end
 
-    - Linux Kernel 5.x+
-    - GCC Compiler & Make utilities
-    - Root privileges (`sudo`)
-    - `iproute2` and `iptables` packages
+        CLI -->|spawns via clone| Kernel
+        Kernel -->|CLONE_NEWPID / NEWUTS / NEWNS / NEWNET| Container
+        CG -.->|limits CPU/RAM/PIDs| Container
+        Bridge --- Veth0
+        Veth0 -.->|veth peer| Veth1
+        Veth1 -->|NAT via iptables| Internet((Internet))
 
-    ## Quick Start
+    +-----------------------------------------------------------------+
+    | HOST SYSTEM                                                     |
+    |                                                                 |
+    |  [ ./container CLI ] ---> clone(NEWPID|NEWUTS|NEWNS|NEWNET)     |
+    |                                 |                               |
+    |  [ cgroups v2 ] ----> Limits: RAM, CPU, PIDs                    |
+    |  [ br-container ] --> 10.0.0.1/24 (Bridge)                      |
+    |                            |                                    |
+    +----------------------------|------------------------------------+
+                                 | veth pair
+    +----------------------------|------------------------------------+
+    | CONTAINER                  v                                    |
+    |  [ veth1: 10.0.0.2 ] ---> Default Gateway: 10.0.0.1 (NAT)       |
+    |  [ Alpine Rootfs ] -----> Isolated via pivot_root()             |
+    |  [ Hostname ] ----------> mini-container                        |
+    |  [ PID 1 ] -------------> Isolated Process Tree                 |
+    +-----------------------------------------------------------------+
 
-    1. Clone the repository and prepare the Alpine Linux root filesystem:
+      ## Features
+   Feature              | Implementation                                      | Linux Primitive
+  ----------------------|-----------------------------------------------------|--------------------------------------
+   Process Isolation    | Container gets its own PID namespace, sees itself   |  clone(CLONE_NEWPID)
+                        | as PID 1                                            |
+   Hostname Isolation   | Each container can have its own hostname            |  clone(CLONE_NEWUTS)  +
+                        |                                                     | sethostname()
+   Filesystem Isolation | Container sees only its own root filesystem         |  pivot_root()  +  mount()
+   Network Isolation    | Container gets its own IP address and network stack |  clone(CLONE_NEWNET)  + veth +
+                        |                                                     | bridge
+   Resource Limiting    | Memory, CPU, and process count limits               | cgroups v2
+   Container Management | List running containers, stop by ID                 |  /tmp/mini-container/  state
+                        |                                                     | tracking
+   Image Management     | Create and list filesystem images                   | Directory-based images
+   Internet Access      | Container can reach the internet via NAT            |  iptables  MASQUERADE
+  ## Quick Start
 
-    ```bash
+    # Clone the repository
     git clone https://github.com/mustafa-akkaya/mini-container-engine.git
     cd mini-container-engine
 
+    # Download Alpine Linux rootfs
     mkdir -p rootfs
-    wget -O alpine-minirootfs.tar.gz https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-
-  minirootfs-3.24.1-x86_64.tar.gz
+    wget -O alpine-minirootfs.tar.gz \
+      https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-minirootfs-3.24.1-x86_64.tar.gz
     sudo tar -xzf alpine-minirootfs.tar.gz -C rootfs
     sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
+
+    # Install iproute2 in rootfs
     sudo chroot rootfs /bin/sh -c "apk add --no-cache iproute2"
 
-  2. Compile the project:
-
+    # Build
     ./build.sh
 
-  ## Usage
-
-  Run an interactive shell inside a basic container:
-
+    # Run container
     sudo ./container run /bin/sh
 
-  Run a container with custom hostname, network isolation, and resource limits (64MB RAM, max 10 PIDs):
+  ## Usage Examples
 
-    sudo ./container run --hostname webserver --net --memory 64 --pids 10 /bin/sh
+    # Basic interactive shell
+    sudo ./container run /bin/sh
 
-  List running containers:
+    # Run with custom hostname, networking and resource limits
+    sudo ./container run --hostname production --net --memory 64 --pids 10 /bin/sh
 
+    # List running containers
     sudo ./container ps
 
-  Stop a running container by ID:
-
+    # Stop a container
     sudo ./container stop <container-id>
 
-  List available images:
-    sudo ./container images
-
-  Create a new image from the current filesystem state:
-
-    sudo ./container create-image my-alpine
-
-  ## Automated Testing & Demo
-
-  Run the automated test suite to verify all isolation layers:
-
+    # Run automated demo & tests
     sudo ./test.sh
-
-  Run the step-by-step interactive demo:
-
     sudo ./demo.sh
 
   ## License
 
   MIT
+  EOF
