@@ -1,4 +1,4 @@
-# Mini Container Engine
+    # Mini Container Engine
 
     A minimal container runtime built from scratch in C, implementing core Linux containerization primitives. This
   project demonstrates how Docker-like containers work under the hood using Linux kernel features.
@@ -28,24 +28,6 @@
         Veth0 -.->|veth peer| Veth1
         Veth1 -->|NAT via iptables| Internet((Internet))
 
-    +-----------------------------------------------------------------+
-    | HOST SYSTEM                                                     |
-    |                                                                 |
-    |  [ ./container CLI ] ---> clone(NEWPID|NEWUTS|NEWNS|NEWNET)     |
-    |                                 |                               |
-    |  [ cgroups v2 ] ----> Limits: RAM, CPU, PIDs                    |
-    |  [ br-container ] --> 10.0.0.1/24 (Bridge)                      |
-    |                            |                                    |
-    +----------------------------|------------------------------------+
-                                 | veth pair
-    +----------------------------|------------------------------------+
-    | CONTAINER                  v                                    |
-    |  [ veth1: 10.0.0.2 ] ---> Default Gateway: 10.0.0.1 (NAT)       |
-    |  [ Alpine Rootfs ] -----> Isolated via pivot_root()             |
-    |  [ Hostname ] ----------> mini-container                        |
-    |  [ PID 1 ] -------------> Isolated Process Tree                 |
-    +-----------------------------------------------------------------+
-
   ## Features
    Feature              | Implementation                                      | Linux Primitive
   ----------------------|-----------------------------------------------------|--------------------------------------
@@ -63,7 +45,6 @@
    Internet Access      | Container can reach the internet via NAT            |  iptables  MASQUERADE
 
   ## Quick Start
-
     # Clone the repository
     git clone https://github.com/mustafa-akkaya/mini-container-engine.git
     cd mini-container-engine
@@ -85,7 +66,6 @@
     sudo ./container run /bin/sh
 
   ## Usage Examples
-
     # Basic interactive shell
     sudo ./container run /bin/sh
 
